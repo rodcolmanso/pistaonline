@@ -3,6 +3,12 @@ const router = {
   "/": () => showContent("content-home"),
   "/profile": () =>
     requireAuth(() => showContent("content-profile"), "/profile"),
+  "/admin": () =>
+    requireRole('admin', () => showContent("content-admin"), "/admin"),
+  "/manager": () =>
+    requireRole(['manager', 'admin'], () => showContent("content-manager"), "/manager", false), // Any role works
+  "/super": () =>
+    requireRole(['admin', 'manager', 'supervisor'], () => showContent("content-super"), "/super", true), // Need ALL roles
   "/login": () => login()
 };
 
@@ -50,7 +56,7 @@ const isRouteLink = (element) =>
  */
 const showContent = (id) => {
   eachElement(".page", (p) => p.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
+  document.getElementById(id)?document.getElementById(id).classList.remove("hidden"):null;
 };
 
 /**
@@ -61,7 +67,35 @@ const updateUI = async () => {
     const isAuthenticated = await auth0Client.isAuthenticated();
 
     if (isAuthenticated) {
+      // Get both user profile and token claims
       const user = await auth0Client.getUser();
+      const token = await auth0Client.getTokenSilently();
+      
+      console.log('Access Token:', token);
+      
+      // Decode the access token to get the roles claim
+      const tokenParts = token.split('.');
+      const tokenPayload = JSON.parse(atob(tokenParts[1]));
+      console.log('Token payload:', tokenPayload);
+      
+      // Look for roles in token payload
+      const roles = tokenPayload.permissions || 
+                   tokenPayload.roles ||
+                   tokenPayload['https://tpmonline.com.br/roles'] ||
+                   [];
+                   
+      console.log('Found roles:', roles);
+      
+      // Store roles in user object and format for display
+      user.role = Array.isArray(roles) ? roles.join(', ') : roles;
+      
+      // If no roles found, set a default
+      if (!user.role) {
+        user.role = 'No roles assigned';
+      }
+      
+      // Log complete user profile for debugging
+      console.log('Final user object with roles:', user);
 
       document.getElementById("profile-data").innerText = JSON.stringify(
         user,
@@ -74,6 +108,7 @@ const updateUI = async () => {
       eachElement(".profile-image", (e) => (e.src = user.picture));
       eachElement(".user-name", (e) => (e.innerText = user.name));
       eachElement(".user-email", (e) => (e.innerText = user.email));
+      eachElement(".user-role", (e) => (e.innerText = user.role));
       eachElement(".auth-invisible", (e) => e.classList.add("hidden"));
       eachElement(".auth-visible", (e) => e.classList.remove("hidden"));
     } else {

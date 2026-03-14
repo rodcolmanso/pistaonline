@@ -1,0 +1,38 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild" # Recomendado para .mjs
+
+# Regra Modular para a V1
+[[redirects]]
+  from = "/api/v1/:module/*"
+  to = "/.netlify/functions/:module_:splat_v1"
+  status = 200
+  force = true
+
+# Regra Modular para a V1
+[[redirects]]
+  from = "/api/v2/:module/*"
+  to = "/.netlify/functions/:module_:splat_v2"
+  status = 200
+  force = true
+
+# Explicação:
+# Se chamar /api/v1/atiradores/perfil
+# :module vira "atiradores"
+# :splat vira "perfil"
+# O Netlify busca em: /.netlify/functions/v1/atiradores/perfil.js
+
+# Se no futuro você criar a V2, basta adicionar:
+# [[redirects]]
+#   from = "/api/v2/:module/*"
+#   to = "/.netlify/functions/v2/:module/:splat"
+#   status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
